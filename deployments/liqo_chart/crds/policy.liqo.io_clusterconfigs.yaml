@@ -56,6 +56,8 @@ spec:
               type: object
             discoveryConfig:
               properties:
+                allowUntrustedCA:
+                  type: boolean
                 autojoin:
                   type: boolean
                 autojoinUntrusted:
@@ -74,8 +76,6 @@ spec:
                   maximum: 65355
                   minimum: 1
                   type: integer
-                allowUntrustedCA:
-                  type: boolean
                 service:
                   type: string
                 updateTime:
@@ -85,6 +85,7 @@ spec:
                   minimum: 1
                   type: integer
               required:
+                - allowUntrustedCA
                 - autojoin
                 - autojoinUntrusted
                 - dnsServer
@@ -93,10 +94,29 @@ spec:
                 - enableDiscovery
                 - name
                 - port
-                - allowUntrustedCA
                 - service
                 - updateTime
                 - waitTime
+              type: object
+            dispatcherConfig:
+              properties:
+                resourcesToReplicate:
+                  items:
+                    description: contains a list of resources identified by their
+                      GVR
+                    properties:
+                      group:
+                        type: string
+                      resource:
+                        type: string
+                      version:
+                        type: string
+                    required:
+                      - group
+                      - resource
+                      - version
+                    type: object
+                  type: array
               type: object
             liqonetConfig:
               properties:

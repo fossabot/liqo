@@ -17,10 +17,14 @@ func createFakeClusterConfig() policyv1.ClusterConfig {
 		},
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				ResourceSharingPercentage:  50,
-				MaxAcceptableAdvertisement: 5,
-				AutoAccept:                 true,
-				EnableBroadcaster:          true,
+				BroadcasterConfig: policyv1.BroadcasterConfig{
+					ResourceSharingPercentage: 50,
+					EnableBroadcaster:         true,
+				},
+				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+					MaxAcceptableAdvertisement: 5,
+					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+				},
 			},
 		},
 	}

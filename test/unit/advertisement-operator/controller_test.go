@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func createReconciler(acceptedAdv, maxAcceptableAdv int32, autoAccept bool) advcontroller.AdvertisementReconciler {
+func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy policyv1.AcceptPolicy) advcontroller.AdvertisementReconciler {
 	return advcontroller.AdvertisementReconciler{
 		Client:           nil,
 		Scheme:           nil,
@@ -21,8 +21,10 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, autoAccept bool) advc
 		HomeClusterId:    "",
 		AcceptedAdvNum:   acceptedAdv,
 		ClusterConfig: policyv1.AdvertisementConfig{
-			MaxAcceptableAdvertisement: maxAcceptableAdv,
-			AutoAccept:                 autoAccept,
+			AdvOperatorConfig: policyv1.AdvOperatorConfig{
+				MaxAcceptableAdvertisement: maxAcceptableAdv,
+				AcceptPolicy:               acceptPolicy,
+			},
 		},
 	}
 }
@@ -36,21 +38,21 @@ func createAdvertisement() v1.Advertisement {
 	}
 }
 
-func TestAcceptAdvertisementWithAutoAccept(t *testing.T) {
-	r := createReconciler(0, 10, true)
+func TestAutoAcceptAllAdvertisement(t *testing.T) {
+	r := createReconciler(0, 10, policyv1.AutoAcceptAll)
 
-	// given a configuration with max 10 Advertisements, create 10 Advertisements and check that they are all accepted
-	for i := 0; i < 10; i++ {
+	// given a configuration with AutoAcceptAll policy, create 15 Advertisements and check that they are all accepted, even if the Maximum is set to 10
+	for i := 0; i < 15; i++ {
 		adv := createAdvertisement()
 		r.CheckAdvertisement(&adv)
 		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has been incremented
-	assert.Equal(t, int32(10), r.AcceptedAdvNum)
+	assert.Equal(t, int32(15), r.AcceptedAdvNum)
 }
 
-func TestRefuseAdvertisementWithAutoAccept(t *testing.T) {
-	r := createReconciler(0, 10, true)
+func TestAutoAcceptAdvertisementWithinMaximum(t *testing.T) {
+	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
 
 	// given a configuration with max 10 Advertisements, create 10 Advertisements
 	for i := 0; i < 10; i++ {
@@ -68,10 +70,10 @@ func TestRefuseAdvertisementWithAutoAccept(t *testing.T) {
 	assert.Equal(t, int32(10), r.AcceptedAdvNum)
 }
 
-func TestCheckAdvertisementWithoutAutoAccept(t *testing.T) {
-	r := createReconciler(0, 10, false)
+func TestAutoRefuseAdvertisement(t *testing.T) {
+	r := createReconciler(0, 10, policyv1.AutoRefuseAll)
 
-	// given a configuration with max 10 Advertisements but no AutoAccept, create 10 Advertisements and check they are refused
+	// given a configuration with max 10 Advertisements but RefuseAll policy, create 10 Advertisements and check they are refused
 	for i := 0; i < 10; i++ {
 		adv := createAdvertisement()
 		r.CheckAdvertisement(&adv)
@@ -82,7 +84,7 @@ func TestCheckAdvertisementWithoutAutoAccept(t *testing.T) {
 }
 
 func TestManageConfigUpdate(t *testing.T) {
-	r := createReconciler(0, 10, true)
+	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
 	advList := v1.AdvertisementList{
 		Items: []v1.Advertisement{},
 	}
@@ -102,15 +104,17 @@ func TestManageConfigUpdate(t *testing.T) {
 	config := policyv1.ClusterConfig{
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				MaxAcceptableAdvertisement: int32(advCount),
-				AutoAccept:                 true,
+				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+					MaxAcceptableAdvertisement: int32(advCount),
+					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+				},
 			},
 		},
 	}
 
 	// TRUE TEST
-	// test the true branch of ManageConfigUpdate
-	err, flag := r.ManageConfigUpdate(&config, &advList)
+	// test the true branch of ManageMaximumUpdate
+	err, flag := r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
 	assert.True(t, flag)
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
@@ -121,8 +125,8 @@ func TestManageConfigUpdate(t *testing.T) {
 
 	// FALSE TEST
 	// apply again the same configuration
-	// we enter in the false branch of ManageConfigUpdate but nothing should change
-	err, flag = r.ManageConfigUpdate(&config, &advList)
+	// we enter in the false branch of ManageMaximumUpdate but nothing should change
+	err, flag = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
 	assert.False(t, flag)
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)

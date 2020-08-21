@@ -23,6 +23,8 @@ const (
 	liqoDashboardSAName = "liqodash-admin-sa"
 	//liqoDashboardTkPrefix is the name prefix of the LiqoDash access token.
 	liqoDashboardTkPrefix = "liqodash-admin-sa-token"
+	//masterNodeLabel is the label name associated with master nodes.
+	masterNodeLabel = "node-role.kubernetes.io/master"
 	//EnvLiqoDashHost defines the env var for the HOST part of the LiqoDash address.
 	EnvLiqoDashHost = "LIQODASH_HOST"
 	//EnvLiqoDashPort defines the env var for the PORT part of the LiqoDash address.
@@ -110,7 +112,7 @@ func (ctrl *AgentController) getDashboardConfigLocal() bool {
 	found := false
 	/*search for a LiqoDash Service of type NodePort*/
 	service, err := c.CoreV1().Services(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardServiceName, metav1.GetOptions{})
-	if err == nil && service.Spec.Type == "NodePort" {
+	if err == nil && service.Spec.Type == corev1.ServiceTypeNodePort {
 		ports := service.Spec.Ports
 		for i := range ports {
 			port := ports[i]
@@ -126,7 +128,7 @@ func (ctrl *AgentController) getDashboardConfigLocal() bool {
 	if found {
 		found = false
 		nodeL, err := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-			LabelSelector: "node-role.kubernetes.io/master",
+			LabelSelector: masterNodeLabel,
 		})
 		if err == nil && len(nodeL.Items) > 0 {
 			for _, addr := range nodeL.Items[0].Status.Addresses {
@@ -153,7 +155,7 @@ func (ctrl *AgentController) getDashboardConfigLocal() bool {
 //GetLiqoDashSecret returns the access token for the LiqoDash service.
 func (ctrl *AgentController) GetLiqoDashSecret() (*string, error) {
 	var token = ""
-	if !ctrl.connected {
+	if !ctrl.Connected() {
 		return &token, errors.New("no connection to the cluster")
 	}
 	errNoToken := errors.New("cannot retrieve token")

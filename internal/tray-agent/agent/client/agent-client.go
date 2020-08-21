@@ -138,21 +138,18 @@ func GetAgentController() *AgentController {
 		var err error
 		if agentCtrl.kubeClient, err = createKubeClient(); err == nil {
 			if !mockedController {
-				if agentCtrl.kubeClient, err = createKubeClient(); err == nil {
-					if agentCtrl.client, err = createClient(); err == nil {
-						agentCtrl.valid = true
-						if test := agentCtrl.ConnectionTest(); test {
-							agentCtrl.StartCaches()
-						}
-					}
-				} else {
+				if agentCtrl.client, err = createClient(); err == nil {
 					agentCtrl.valid = true
-					agentCtrl.connected = true
-					agentCtrl.StartCaches()
+					if test := agentCtrl.ConnectionTest(); test {
+						agentCtrl.StartCaches()
+					}
 				}
+			} else {
+				agentCtrl.valid = true
+				agentCtrl.connected = true
+				agentCtrl.StartCaches()
 			}
 		}
-
 	}
 	return agentCtrl
 }
